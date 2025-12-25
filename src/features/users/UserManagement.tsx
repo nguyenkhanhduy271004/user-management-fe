@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { ChangeEvent } from 'react';
 import {
   Alert,
@@ -19,46 +19,34 @@ import {
   TablePagination,
   Typography,
 } from '@mui/material';
-import { getApiErrorMessage } from '../../api/httpClient';
-import { DEFAULT_USER_QUERY, usersApi } from './api';
-import type {
-  SortOption,
-  User,
-  UserFormMode,
-  UserFormValues,
-  UserQuery,
-  UserUpdatePayload,
-} from './types';
+import { DEFAULT_USER_QUERY } from './api';
+import { useUserStore } from './store/userStore';
+import type { SortOption, User, UserFormMode, UserFormValues } from './types';
 import UserFormDialog from './components/UserFormDialog';
 
 const UserManagement = () => {
-  const [users, setUsers] = useState<User[]>([]);
-  const [query, setQuery] = useState<UserQuery>(DEFAULT_USER_QUERY);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [info, setInfo] = useState<string | null>(null);
+  const {
+    users,
+    query,
+    loading,
+    submitting,
+    deletingId,
+    error,
+    info,
+    loadUsers,
+    setQuery,
+    createUser,
+    updateUser,
+    deleteUser,
+    clearMessage,
+  } = useUserStore();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogMode, setDialogMode] = useState<UserFormMode>('create');
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-  const [deletingId, setDeletingId] = useState<number | null>(null);
-
-  const loadUsers = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await usersApi.list(query);
-      setUsers(response.data ?? []);
-    } catch (err) {
-      setError(getApiErrorMessage(err));
-    } finally {
-      setLoading(false);
-    }
-  }, [query]);
 
   useEffect(() => {
     loadUsers();
-  }, [loadUsers]);
+  }, [loadUsers, query]);
 
   const openCreateDialog = () => {
     setDialogMode('create');
@@ -78,70 +66,40 @@ const UserManagement = () => {
   };
 
   const handleSubmit = async (values: UserFormValues) => {
-    setSubmitting(true);
-    setError(null);
     try {
       if (dialogMode === 'create') {
-        await usersApi.create({
-          username: values.username,
-          fullName: values.fullName,
-          password: values.password,
-        });
-        setInfo('Thêm người dùng thành công.');
+        await createUser(values);
       } else if (selectedUser) {
-        const fullName = values.fullName.trim();
-        const password = values.password.trim();
-
-        const payload: UserUpdatePayload = { userId: selectedUser.userId };
-        if (fullName) payload.fullName = fullName;
-        if (password) payload.password = password;
-
-        await usersApi.update(payload);
-        setInfo('Cập nhật người dùng thành công.');
+        await updateUser(selectedUser, values);
       }
       handleDialogClose();
-      await loadUsers();
     } catch (err) {
-      setError(getApiErrorMessage(err));
-    } finally {
-      setSubmitting(false);
+      console.error(err);
     }
   };
 
   const handleDelete = async (user: User) => {
     const confirmed = window.confirm(`Bạn chắc chắn muốn xóa người dùng "${user.fullName}"?`);
     if (!confirmed) return;
-    setDeletingId(user.userId);
-    setError(null);
     try {
-      await usersApi.remove(user.userId);
-      setInfo('Xóa người dùng thành công.');
-      await loadUsers();
+      await deleteUser(user);
     } catch (err) {
-      setError(getApiErrorMessage(err));
-    } finally {
-      setDeletingId(null);
+      console.error(err);
     }
   };
 
   const handleSortChange = (event: ChangeEvent<HTMLInputElement>) => {
     const sortValue = event.target.value as SortOption;
-    setQuery((prev) => ({ ...prev, sort: sortValue }));
-  };
-
-  const handleSizeChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const value = Number(event.target.value);
-    if (Number.isNaN(value)) return;
-    setQuery((prev) => ({ ...prev, page: 0, size: Math.max(1, Math.min(100, value)) }));
+    setQuery({ sort: sortValue, page: 0 });
   };
 
   const handlePageChange = (_: unknown, newPage: number) => {
-    setQuery((prev) => ({ ...prev, page: newPage }));
+    setQuery({ page: newPage });
   };
 
   const handleRowsPerPageChange = (event: ChangeEvent<HTMLInputElement>) => {
     const newSize = parseInt(event.target.value, 10);
-    setQuery((prev) => ({ ...prev, page: 0, size: newSize }));
+    setQuery({ page: 0, size: newSize });
   };
 
   const page = query.page ?? 0;
@@ -189,17 +147,17 @@ const UserManagement = () => {
               <option value="user_id">ID</option>
               <option value="username">Tên đăng nhập</option>
             </TextField>
-           
+
           </Stack>
 
           <Stack spacing={1} mb={2}>
             {error && (
-              <Alert severity="error" onClose={() => setError(null)}>
+              <Alert severity="error" onClose={clearMessage}>
                 {error}
               </Alert>
             )}
             {info && (
-              <Alert severity="success" onClose={() => setInfo(null)}>
+              <Alert severity="success" onClose={clearMessage}>
                 {info}
               </Alert>
             )}

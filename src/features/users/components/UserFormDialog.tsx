@@ -65,8 +65,8 @@ const UserFormDialog = ({
 
   const handleChange =
     (field: keyof UserFormValues) => (event: ChangeEvent<HTMLInputElement>) => {
-    setValues((prev) => ({ ...prev, [field]: event.target.value }));
-  };
+      setValues((prev) => ({ ...prev, [field]: event.target.value }));
+    };
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
@@ -111,12 +111,12 @@ const UserFormDialog = ({
                 placeholder="••••••"
                 value={values.password}
                 onChange={handleChange('password')}
-              required
-              helperText={
-                isCreateMode
-                  ? 'Tối thiểu 4 ký tự.'
-                  : 'Nhập nếu muốn đổi mật khẩu (tối thiểu 4 ký tự).'
-              }
+                required
+                helperText={
+                  isCreateMode
+                    ? 'Tối thiểu 4 ký tự.'
+                    : 'Nhập nếu muốn đổi mật khẩu (tối thiểu 4 ký tự).'
+                }
                 fullWidth
               />
               {!isCreateMode && (
